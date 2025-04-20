@@ -1,2 +1,15 @@
 # 2playerLines
-A 2 player line game. Requires controller input and trigger buttons steer.
+A 2 player (controllers) line game.<BR />
+<BR />
+Survivor gets 3 points.<BR />
+Squares are worth 1 point and clear a space around themselves.<BR />
+Do not collide with lines or circles with your head.<BR />
+Bouncing circles erase lines and another appears every 5 seconds.<BR />
+You are invincible until first move unless you hit the wall.<BR />
+X or A pauses.<BR />
+Steer with controller triggers.<BR />
+<BR />
+MIT license.<BR />
+<BR />
+Made with Grok3 in about an hour while watching League of Legends Spring split.<BR />
+Does that matter? Kinda, just paste main.cpp in Grok3 and tell it what you want to change and it will give you a new main.cpp.
