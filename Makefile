@@ -13,7 +13,7 @@ ifeq ($(OS),Windows_NT)
     LDFLAGS += -L/usr/lib
 endif
 
-TARGET = snake_game
+TARGET = lines
 SOURCES = src/main.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
