@@ -14,4 +14,4 @@ MIT license.<BR />
 Made with Grok3 in about an hour while watching League of Legends Spring split.<BR />
 Does that matter? Kinda, just paste main.cpp in Grok3 and tell it what you want to change and it will give you a new main.cpp.<BR />
 
-Type make to build. Needs OpenGL (Mesa) and SDL2, mingw for Windows.
+Type make to build. Needs OpenGL (Mesa) and SDL2.
