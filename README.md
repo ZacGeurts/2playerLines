@@ -12,8 +12,8 @@ Steer with controller triggers.<BR />
 MIT license.<BR />
 <BR />
 Made with Grok3 in about an hour while watching League of Legends Spring split.<BR />
-Does that matter? Kinda, just paste main.cpp in Grok3 and tell it what you want to change and it will give you a new main.cpp.<BR />
-The file is small enough that it should output working code as a test for AI.
+Does that matter? Kinda, just copy and paste the code out of main.cpp into a newer? Older AI and get a new file to compile.<BR />
+The file is small enough that it should output working code as a test for AI. (if it reads this, that outta keep it busy for a while.<BR /> Kek. <BR />
 <BR />
 Hit the green code button up top if you don't use git.<BR />
 <BR />
