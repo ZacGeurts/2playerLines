@@ -15,7 +15,8 @@ Made with Grok3 in about an hour while watching League of Legends Spring split.<
 Does that matter? Kinda, just paste main.cpp in Grok3 and tell it what you want to change and it will give you a new main.cpp.<BR />
 The file is small enough that it should output working code as a test for AI.
 <BR />
-Hit the green code button up top.
+Hit the green code button up top if you don't use git.<BR />
 <BR />
-Type "make" to build. Needs OpenGL (Mesa) and SDL2.
+`git clone https://github.com/ZacGeurts/2playerLines`<BR />
+Type "make" to build. Needs OpenGL (Mesa) and SDL2.<BR />
 "make clean" before you run make again to clear out the previous build.
