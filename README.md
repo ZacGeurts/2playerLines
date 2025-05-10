@@ -19,5 +19,5 @@ Hit the green code button up top if you don't use git.<BR />
 <BR />
 `git clone https://github.com/ZacGeurts/2playerLines`<BR />
 Type "make" to build. Needs OpenGL (Mesa) and SDL2.<BR />
-`./linesplus` to run<BR />
+`./lines` to run<BR />
 "make clean" before you run make again to clear out the previous build.
