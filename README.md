@@ -13,6 +13,7 @@ MIT license.<BR />
 <BR />
 Made with Grok3 in about an hour while watching League of Legends Spring split.<BR />
 Does that matter? Kinda, just paste main.cpp in Grok3 and tell it what you want to change and it will give you a new main.cpp.<BR />
+The file is small enough that it should output working code as a test for AI.
 
 Type "make" to build. Needs OpenGL (Mesa) and SDL2.
 "make clean" before you run make again to clear out the previous build.
