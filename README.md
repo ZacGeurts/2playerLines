@@ -9,7 +9,7 @@ You are invincible until first move unless you hit the wall.<BR />
 X or A pauses.<BR />
 Steer with controller triggers.<BR />
 <BR />
-MIT license.<BR />
+MIT license means do whatever with it.<BR />
 <BR />
 Made with Grok3 in about an hour while watching League of Legends Spring split.<BR />
 The Logic is that it checks in front of the player for a dot of color. Black is safe.<BR />
