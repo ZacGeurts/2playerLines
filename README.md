@@ -25,4 +25,7 @@ Hit the green code button up top if you don't use git.<BR />
 `cd 2playerLines`
 Type `make` to build. Needs OpenGL (Mesa) and SDL2.<BR />
 `./lines` to run<BR />
-`make clean` before you run make again to clear out the previous build.
+Save a backup of your working builds if you cannot afford to lose them.<BR />
+`make clean` before you run make again to clear out the previous build.<BR />
+If you destroy your main.cpp, you can come download this one again.<BR />
+Modifiing files other than main.cpp is not a beginner project.
