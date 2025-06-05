@@ -169,7 +169,7 @@ Collectible spawnCollectible(std::mt19937& rng) {
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
-    SDL_Window* window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("2 Player Lines Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable VSync
     glOrtho(0, WIDTH, HEIGHT, 0, -1, 1);
