@@ -27,24 +27,31 @@ Try to keep main.cpp small and have the AI read and update it, but as you add th
 This makefile will find them. It checks /src /include /assets and will create all the SDK folders so you can place your SDK within.<BR />
 <BR />
 Planned platforms:
+3ds<BR />
 aarch64<BR />
+amiga68k<BR />
+amigappc<BR />
+android<BR />
 armv6<BR />
 armv7<BR />
 armv8<BR />
+djgpp<BR />
 dreamcast<BR />
-nintendo_3ds<BR />
-nintendo_switch<BR />
-nintendo_wii<BR />
-nintendo_wii_u<BR />
+emscripten<BR />
+ios<BR />
+linux<BR />
+macos<BR />
 ouya<BR />
 ps3<BR />
 ps4<BR />
 psp<BR />
-ps_vita<BR />
-steam_deck<BR />
-steam_link<BR />
-x86<BR />
-x86_64<BR />
+steamdeck<BR />
+steamlink<BR />
+switch<BR />
+vita<BR />
+wii<BR />
+wiiu<BR />
+windows<BR />
 <BR />
 Controls and about main.cpp
 Survivor gets 3 points.<BR />
