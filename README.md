@@ -18,11 +18,13 @@ main.cpp is intended to run at some point on a rediculous number of systems that
 I have a sideproject that is creating toolchains for the platforms.<BR />
 <BR />
 What does any of this mean?:<BR />
-There is one small main.cpp that AI can read in entirety and write include files or other programs from that run on various platforms.<BR />
+There is one small main.cpp that AI can read in entirety and write include files or other programs from that, that will run on any device in your house, maybe.<BR />
 <BR />
-If you have a tiny main.cpp that plays 2PlayerLines on your Dreamcast, you can do anything with main.cpp that uses sdl and opengl, like a platformer.<BR />
-Even a new 4 player game if you have the controllers and friends.<BR />
+If you have a tiny main.cpp that plays 2PlayerLines on your device, you can do anything with main.cpp for input, output, and graphics.<BR />
+Even a new 4 player game on the coffee pot, if you have a fancy coffee pot, the controllers and friends.<BR />
 main.cpp is your foot in the door.<BR />
+Try to keep main.cpp small and have the AI read and update it, but as you add things you will want it in includes/.h files.<BR />
+This makefile will find them. It checks /src /include /assets and will create all the SDK folders so you can place your SDK within.<BR />
 <BR />
 Planned platforms:
 aarch64<BR />
