@@ -4,7 +4,10 @@
 // Builds a 2-player game where players move at fixed speed (7s to cross widest resolution),
 // collect green squares (10% shortest side) for 1 point, and avoid yellow circles (10% diameter),
 // opposing trails, or edges (death awards 3 points to opponent). Controls: triggers, D-pad,
-// joystick, or keyboard (P1).
+// joystick, or keyboard (P1: Left/Right, P2: A/D).
+// Every 5 seconds a new yellow circle appears. We do not clear the screen but draw black under the circles so as they move, they erase lines.
+// We can redraw the square and when it is picked up, we can replace it with a safe black box, erasing lines.
+// Otherwise we do not track the lines or erase them.
 
 // Platform detection
 #if defined(__DJGPP__) || defined(__AMIGA__) || defined(__DREAMCAST__) || defined(__PSP__) || defined(__WII__)
@@ -107,15 +110,16 @@ const int WIDTH = 1920, HEIGHT = 1080; // Desktop 16:9
 
 // Game constants
 const float SHORTEST_SIDE = std::min(WIDTH, HEIGHT);
-const float PLAYER_SPEED = WIDTH / 7.0f; // 7s to cross WIDTH
-const float CIRCLE_SPEED = PLAYER_SPEED * 1.5f;
-const float TURN_SPEED = 2.0f * 3.14159265358979323846f;
+const float MAX_DIM = std::max(WIDTH, HEIGHT);
+const float PLAYER_SPEED = MAX_DIM / 7.0f; // 7s to cross max dimension
+const float CIRCLE_SPEED = MAX_DIM / 6.5f; // 6.5s to cross max dimension
+const float TURN_SPEED = 2.0f * 3.14159265358979323846f; // One full rotation per second
 const float PLAYER_SIZE = 2.0f; // ~2 pixels
 const float TRAIL_SIZE = 1.0f; // 1 pixel
 const float CIRCLE_RADIUS = 0.05f * SHORTEST_SIDE; // 5% for 10% diameter
 const float COLLECTIBLE_SIZE = 0.1f * SHORTEST_SIDE; // 10% width
-const float BLACK_CIRCLE_SIZE = COLLECTIBLE_SIZE * 2.0f;
-const float BLACK_SQUARE_SIZE = COLLECTIBLE_SIZE * 2.5f;
+const float BLACK_CIRCLE_SIZE = CIRCLE_RADIUS * 1.1f; // Slightly larger to erase trails
+const float BLACK_SQUARE_SIZE = COLLECTIBLE_SIZE * 1.2f; // Slightly larger to erase trails
 
 // Lookup table for AmigaOS m68k
 #if defined(__AMIGA__)
@@ -140,6 +144,7 @@ struct Vec2 {
 	Vec2(float x = 0, float y = 0) : x(x), y(y) {}
 	Vec2 operator+(const Vec2& o) const { return Vec2(x + o.x, y + o.y); }
 	Vec2 operator*(float s) const { return Vec2(x * s, y * s); }
+	Vec2 operator-(const Vec2& o) const { return Vec2(x - o.x, y - o.y); }
 };
 
 struct Player {
@@ -157,7 +162,7 @@ struct Circle {
 
 struct Collectible {
 	Vec2 pos;
-	float size, blackCircleSize, blackSquareSize;
+	float size, blackSquareSize;
 };
 
 // Font data
@@ -335,20 +340,35 @@ void drawText(const std::string& text, float x, float y, float size, const SDL_C
 Collectible spawnCollectible() {
 	Vec2 pos(random_float(BLACK_SQUARE_SIZE / 2, WIDTH - BLACK_SQUARE_SIZE / 2),
 			 random_float(BLACK_SQUARE_SIZE / 2, HEIGHT - BLACK_SQUARE_SIZE / 2));
-	return {pos, COLLECTIBLE_SIZE, BLACK_CIRCLE_SIZE, BLACK_SQUARE_SIZE};
+	return {pos, COLLECTIBLE_SIZE, BLACK_SQUARE_SIZE};
 }
 
-bool checkCollision(const Vec2& p, const Player& other, const std::vector<Circle>& circles) {
+bool checkCollision(const Vec2& p, const Player& other, const std::vector<Circle>& circles, const Vec2& prev) {
+	// Check screen edges
 	if (p.x < 0 || p.x > WIDTH || p.y < 0 || p.y > HEIGHT) return true;
+	
+	// Line segment intersection with other player's trail
 	for (int i = 1; i < other.trailCount; i++) {
 		Vec2 a = other.trail[i - 1], b = other.trail[i];
-		Vec2 ab = b + (a * -1), ap = p + (a * -1);
-		float t = (ap.x * ab.x + ap.y * ab.y) / (ab.x * ab.x + ab.y * ab.y);
-		if (t < 0 || t > 1) continue;
-		Vec2 proj = a + ab * t;
-		float dx = p.x - proj.x, dy = p.y - proj.y;
-		if (dx * dx + dy * dy < PLAYER_SIZE * PLAYER_SIZE) return true;
+		Vec2 c = prev, d = p;
+		float denom = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+		if (fabs(denom) < 1e-6) continue; // Parallel lines
+		float t = ((a.y - c.y) * (d.x - c.x) - (a.x - c.x) * (d.y - c.y)) / denom;
+		float u = ((a.y - c.y) * (b.x - a.x) - (a.x - c.x) * (b.y - a.y)) / denom;
+		if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+			// Intersection point
+			Vec2 intersect = a + (b - a) * t;
+			float dx = p.x - intersect.x, dy = p.y - intersect.y;
+			if (dx * dx + dy * dy < PLAYER_SIZE * PLAYER_SIZE) return true;
+		}
+		// Check proximity to endpoints
+		for (const auto& pt : {a, b}) {
+			float dx = p.x - pt.x, dy = p.y - pt.y;
+			if (dx * dx + dy * dy < PLAYER_SIZE * PLAYER_SIZE) return true;
+		}
 	}
+	
+	// Check collision with circles
 	for (const auto& c : circles) {
 		float dx = p.x - c.pos.x, dy = p.y - c.pos.y;
 		if (dx * dx + dy * dy < (c.radius + PLAYER_SIZE) * (c.radius + PLAYER_SIZE)) return true;
@@ -384,6 +404,12 @@ int main(int argc, char* argv[]) {
 	glMatrixMode(GL_MODELVIEW);
 	glClearColor(0, 0, 0, 1);
 	glLineWidth(TRAIL_SIZE);
+	glClear(GL_COLOR_BUFFER_BIT); // Clear once at startup
+#if USE_SDL1_2
+	SDL_GL_SwapBuffers();
+#else
+	SDL_GL_SwapWindow(window);
+#endif
 
 #if USE_SDL1_2
 	SDL_Joystick* joysticks[2] = {nullptr, nullptr};
@@ -407,15 +433,17 @@ int main(int argc, char* argv[]) {
 	srand(time(nullptr));
 #endif
 
-	Player p1{{100, HEIGHT / 2}, {1, 0}, {0, 0, 255, 255}, {}, 0, true, false, false};
-	Player p2{{WIDTH - 100, HEIGHT / 2}, {-1, 0}, {255, 0, 0, 255}, {}, 0, true, false, false};
+	std::vector<Player> players = {
+		{{100, HEIGHT / 2}, {1, 0}, {0, 0, 255, 255}, {}, 0, true, false, false}, // Player 1 (Blue)
+		{{WIDTH - 100, HEIGHT / 2}, {-1, 0}, {255, 0, 0, 255}, {}, 0, true, false, false} // Player 2 (Red)
+	};
 	std::vector<Circle> circles;
 	float angle = random_float(0, 2 * 3.14159265358979323846f);
 	circles.push_back({{random_float(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS), random_float(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)},
 					   {CIRCLE_SPEED * fastCos(angle), CIRCLE_SPEED * fastSin(angle)}, CIRCLE_RADIUS});
 	Collectible collectible = spawnCollectible();
-	int score1 = 0, score2 = 0;
-	bool gameOver = false, gameOverScreen = false, firstFrame = true;
+	int scores[2] = {0, 0};
+	bool gameOver = false, gameOverScreen = false;
 #if NO_CXX11
 	float lastCircle = get_time(), gameOverTime = lastCircle, lastTime = lastCircle;
 #else
@@ -429,29 +457,35 @@ int main(int argc, char* argv[]) {
 		const Uint8* keys = SDL_GetKeyboardState(nullptr);
 		SDL_Event e;
 		while (SDL_PollEvent(&e)) {
-			if (e.type == SDL_QUIT) running = false;
+			if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.scancode == SDL_SCANCODE_ESCAPE)) {
+				running = false;
+			}
 		}
 
 		if (!gameOverScreen && !gameOver) {
 			// Controls
-			float turn1 = 0, turn2 = 0;
-			if (keys[SDL_SCANCODE_LEFT]) { turn1 = -TURN_SPEED * dt; p1.hasMoved = true; }
-			if (keys[SDL_SCANCODE_RIGHT]) { turn1 = TURN_SPEED * dt; p1.hasMoved = true; }
+			float turns[2] = {0, 0};
+			// Player 1: Left/Right keys
+			if (keys[SDL_SCANCODE_LEFT]) { turns[0] = -TURN_SPEED * dt; players[0].hasMoved = true; }
+			if (keys[SDL_SCANCODE_RIGHT]) { turns[0] = TURN_SPEED * dt; players[0].hasMoved = true; }
+			// Player 2: A/D keys
+			if (keys[SDL_SCANCODE_A]) { turns[1] = -TURN_SPEED * dt; players[1].hasMoved = true; }
+			if (keys[SDL_SCANCODE_D]) { turns[1] = TURN_SPEED * dt; players[1].hasMoved = true; }
+
 #if USE_SDL1_2
 			for (int i = 0; i < joyCount; i++) {
 				if (!joysticks[i]) continue;
-				Player& p = i == 0 ? p1 : p2;
+				Player& p = players[i];
 				if (!p.alive) continue;
 				Sint16 axis = SDL_JoystickGetAxis(joysticks[i], 0);
 				Sint16 trigL = SDL_JoystickGetAxis(joysticks[i], 2), trigR = SDL_JoystickGetAxis(joysticks[i], 5);
 				if (axis < -10000 || axis > 10000 || trigL > 0 || trigR > 0) p.hasMoved = true;
-				float turn = ((trigR - trigL) / 32768.0f + axis / 32768.0f) * TURN_SPEED * dt;
-				(i == 0 ? turn1 : turn2) += turn;
+				turns[i] += ((trigR - trigL) / 32768.0f + axis / 32768.0f) * TURN_SPEED * dt;
 			}
 #else
 			for (int i = 0; i < ctrlCount; i++) {
 				if (!controllers[i]) continue;
-				Player& p = i == 0 ? p1 : p2;
+				Player& p = players[i];
 				if (!p.alive) continue;
 				Sint16 axis = SDL_GameControllerGetAxis(controllers[i], SDL_CONTROLLER_AXIS_LEFTX);
 				Sint16 trigL = SDL_GameControllerGetAxis(controllers[i], SDL_CONTROLLER_AXIS_TRIGGERLEFT);
@@ -459,29 +493,45 @@ int main(int argc, char* argv[]) {
 				Uint8 dpadL = SDL_GameControllerGetButton(controllers[i], SDL_CONTROLLER_BUTTON_DPAD_LEFT);
 				Uint8 dpadR = SDL_GameControllerGetButton(controllers[i], SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
 				if (axis < -10000 || axis > 10000 || trigL > 0 || trigR > 0 || dpadL || dpadR) p.hasMoved = true;
-				float turn = ((trigR - trigL) / 32768.0f + (dpadR - dpadL) + axis / 32768.0f) * TURN_SPEED * dt;
-				(i == 0 ? turn1 : turn2) += turn;
+				turns[i] += ((trigR - trigL) / 32768.0f + (dpadR - dpadL) + axis / 32768.0f) * TURN_SPEED * dt;
 			}
 #endif
-			for (auto p : {&p1, &p2}) {
-				if (!p->alive) continue;
-				float angle = atan2(p->dir.y, p->dir.x) + (p == &p1 ? turn1 : turn2);
-				p->dir = {fastCos(angle), fastSin(angle)};
-				Vec2 next = p->pos + p->dir * PLAYER_SPEED * dt;
-				if (!p->willDie && p->hasMoved) {
-					if (checkCollision(next, p == &p1 ? p2 : p1, circles)) p->willDie = true;
+
+			// Update players
+			bool collectiblePickedUp = false;
+			for (int i = 0; i < 2; i++) {
+				auto& p = players[i];
+				if (!p.alive) continue;
+				float angle = atan2(p.dir.y, p.dir.x) + turns[i];
+				p.dir = {fastCos(angle), fastSin(angle)};
+				Vec2 prev = p.pos;
+				Vec2 next = p.pos + p.dir * PLAYER_SPEED * dt;
+				if (!p.willDie && p.hasMoved) {
+					if (checkCollision(next, players[1 - i], circles, prev)) p.willDie = true;
 				}
-				if (p->willDie) { p->alive = false; continue; }
-				p->pos = next;
-				if (p->trailCount < 1000) p->trail[p->trailCount++] = p->pos;
-				if (checkCollectibleCollision(p->pos, collectible)) {
-					(p == &p1 ? score1 : score2)++;
-					collectible = spawnCollectible();
+				if (p.willDie) {
+					p.alive = false;
+					scores[1 - i] += 3; // Award 3 points to opponent
+					continue;
 				}
+				p.pos = next;
+				if (p.trailCount < 1000) p.trail[p.trailCount++] = p.pos;
+				if (checkCollectibleCollision(p.pos, collectible)) {
+					scores[i]++;
+					collectiblePickedUp = true;
+				}
+			}
+
+			// Handle collectible pickup
+			if (collectiblePickedUp) {
+				drawSquare(collectible.pos.x - collectible.blackSquareSize / 2, collectible.pos.y - collectible.blackSquareSize / 2, collectible.blackSquareSize, {0, 0, 0, 255});
+				collectible = spawnCollectible();
 			}
 
 			// Update circles
 			for (auto& c : circles) {
+				// Draw black circle to erase trails
+				drawCircle(c.pos.x, c.pos.y, BLACK_CIRCLE_SIZE, {0, 0, 0, 255});
 				c.pos = c.pos + c.vel * dt;
 				if (c.pos.x - c.radius < 0 || c.pos.x + c.radius > WIDTH) {
 					c.vel.x = -c.vel.x;
@@ -491,17 +541,9 @@ int main(int argc, char* argv[]) {
 					c.vel.y = -c.vel.y;
 					c.pos.y = std::max(c.radius, std::min(HEIGHT - c.radius, c.pos.y));
 				}
-				for (auto p : {&p1, &p2}) {
-					int i = 0;
-					while (i < p->trailCount) {
-						float dx = c.pos.x - p->trail[i].x, dy = c.pos.y - p->trail[i].y;
-						if (dx * dx + dy * dy < c.radius * c.radius) {
-							p->trail[i] = p->trail[--p->trailCount];
-						} else i++;
-					}
-				}
 			}
 
+			// Spawn new circle every 5 seconds
 			if (get_dt(lastCircle) > 5.0f) {
 				float angle = random_float(0, 2 * 3.14159265358979323846f);
 				circles.push_back({{random_float(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS), random_float(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)},
@@ -513,11 +555,10 @@ int main(int argc, char* argv[]) {
 #endif
 			}
 
-			if (!p1.alive || !p2.alive) {
+			// Check for game over
+			if (!players[0].alive || !players[1].alive) {
 				gameOver = true;
 				gameOverScreen = true;
-				if (!p1.alive && p2.alive) score2 += 3;
-				else if (!p2.alive && p1.alive) score1 += 3;
 #if NO_CXX11
 				gameOverTime = get_time();
 #else
@@ -525,8 +566,9 @@ int main(int argc, char* argv[]) {
 #endif
 			}
 		} else if (gameOverScreen && get_dt(gameOverTime) > 5.0f) {
-			p1 = {{100, HEIGHT / 2}, {1, 0}, {0, 0, 255, 255}, {}, 0, true, false, false};
-			p2 = {{WIDTH - 100, HEIGHT / 2}, {-1, 0}, {255, 0, 0, 255}, {}, 0, true, false, false};
+			// Reset game
+			players[0] = {{100, HEIGHT / 2}, {1, 0}, {0, 0, 255, 255}, {}, 0, true, false, false};
+			players[1] = {{WIDTH - 100, HEIGHT / 2}, {-1, 0}, {255, 0, 0, 255}, {}, 0, true, false, false};
 			circles.clear();
 			float angle = random_float(0, 2 * 3.14159265358979323846f);
 			circles.push_back({{random_float(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS), random_float(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)},
@@ -541,29 +583,32 @@ int main(int argc, char* argv[]) {
 #endif
 		}
 
-		// Render
-		glClear(GL_COLOR_BUFFER_BIT);
+		// Render (no screen clear to persist lines)
 		if (gameOverScreen) {
-			std::string score = std::to_string(score1) + "-" + std::to_string(score2);
-			float size = 5.0f;
-			drawText(score, (WIDTH - score.size() * size * 6) / 2, HEIGHT / 2 - 12.5f, size, {255, 255, 255, 255});
+			// Clear only for game over screen
+			glClear(GL_COLOR_BUFFER_BIT);
+			std::string score = std::to_string(scores[0]) + "-" + std::to_string(scores[1]);
+			float size = SHORTEST_SIDE / 80.0f; // Scale font with resolution
+			drawText(score, (WIDTH - score.size() * size * 6) / 2, HEIGHT / 2 - size * 5, size, {255, 255, 255, 255});
 			int countdown = 5 - (int)get_dt(gameOverTime);
-			if (countdown >= 1) drawText(std::to_string(countdown), (WIDTH - size * 6) / 2, HEIGHT / 2 + 12.5f, size, {255, 255, 255, 255});
+			if (countdown >= 1) drawText(std::to_string(countdown), (WIDTH - size * 6) / 2, HEIGHT / 2 + size * 5, size, {255, 255, 255, 255});
 		} else {
+			// Draw collectible with black square underneath
 			drawSquare(collectible.pos.x - collectible.blackSquareSize / 2, collectible.pos.y - collectible.blackSquareSize / 2, collectible.blackSquareSize, {0, 0, 0, 255});
-			drawCircle(collectible.pos.x, collectible.pos.y, collectible.blackCircleSize, {0, 0, 0, 255});
 			drawSquare(collectible.pos.x - collectible.size / 2, collectible.pos.y - collectible.size / 2, collectible.size, {0, 255, 0, 255});
+			// Draw yellow circles (black circles drawn in update loop)
 			for (const auto& c : circles) drawCircle(c.pos.x, c.pos.y, c.radius, {255, 255, 0, 255});
-			drawTrail(p1); drawTrail(p2);
-			drawSquare(p1.pos.x - PLAYER_SIZE / 2, p1.pos.y - PLAYER_SIZE / 2, PLAYER_SIZE, p1.color);
-			drawSquare(p2.pos.x - PLAYER_SIZE / 2, p2.pos.y - PLAYER_SIZE / 2, PLAYER_SIZE, p2.color);
-			if (firstFrame) {
-				std::string score = std::to_string(score1) + "-" + std::to_string(score2);
-				float size = 5.0f;
-				drawText(score, (WIDTH - score.size() * size * 6) / 2, HEIGHT / 2 - 12.5f, size, {255, 255, 255, 255});
-				firstFrame = false;
+			// Draw trails and players
+			for (const auto& p : players) {
+				drawTrail(p);
+				if (p.alive) drawSquare(p.pos.x - PLAYER_SIZE / 2, p.pos.y - PLAYER_SIZE / 2, PLAYER_SIZE, p.color);
 			}
+			// Draw score continuously
+			std::string score = std::to_string(scores[0]) + "-" + std::to_string(scores[1]);
+			float size = SHORTEST_SIDE / 80.0f;
+			drawText(score, (WIDTH - score.size() * size * 6) / 2, 10, size, {255, 255, 255, 255});
 		}
+
 #if USE_SDL1_2
 		SDL_GL_SwapBuffers();
 #else
